@@ -3,7 +3,7 @@
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState};
+use ratatui::widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap};
 use ratatui::Frame;
 use ratatui_braille_bar::BrailleBar;
 
@@ -163,7 +163,7 @@ pub fn draw(f: &mut Frame, app: &App, area: Rect) {
     let top = bottom.saturating_sub(viewport);
     let visible = lines[top..bottom].to_vec();
 
-    let p = Paragraph::new(visible);
+    let p = Paragraph::new(visible).wrap(Wrap { trim: false });
     f.render_widget(p, log_area);
 
     // Scrollbar справа (внутри log_area, но визуально на правом краю области).

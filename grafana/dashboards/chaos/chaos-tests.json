@@ -2091,7 +2091,17 @@
         }
       ],
       "title": "CPU by execution pool",
-      "type": "timeseries"
+      "type": "timeseries",
+      "links": [
+        {
+          "title": "\u2192 01,02 CPU/RAM",
+          "url": "/d/chaos-01-02",
+          "targetBlank": false,
+          "type": "link",
+          "keepTime": true,
+          "includeVars": true
+        }
+      ]
     },
     {
       "datasource": {
@@ -2831,7 +2841,17 @@
         }
       ],
       "title": "CPU % by hosts",
-      "type": "timeseries"
+      "type": "timeseries",
+      "links": [
+        {
+          "title": "\u2192 01,02 CPU/RAM",
+          "url": "/d/chaos-01-02",
+          "targetBlank": false,
+          "type": "link",
+          "keepTime": true,
+          "includeVars": true
+        }
+      ]
     },
     {
       "datasource": {
@@ -3430,7 +3450,17 @@
         }
       ],
       "title": "Avg CPU % per host",
-      "type": "timeseries"
+      "type": "timeseries",
+      "links": [
+        {
+          "title": "\u2192 01,02 CPU/RAM",
+          "url": "/d/chaos-01-02",
+          "targetBlank": false,
+          "type": "link",
+          "keepTime": true,
+          "includeVars": true
+        }
+      ]
     },
     {
       "datasource": {

@@ -1,6 +1,6 @@
 global:
-  scrape_interval: 15s
-  scrape_timeout: 15s
+  scrape_interval: 5s
+  scrape_timeout: 5s
 
 # Файлы с таргетами генерируются при запуске 01-victoria.sh из CLUSTER_HOSTS и YDB_MON_PORTS:
 #   /etc/prometheus/ydbd-mon.yml     — все хосты × все порты из YDB_MON_PORTS (по умол. 8765,8767,8768)

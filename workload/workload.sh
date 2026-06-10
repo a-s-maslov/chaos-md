@@ -192,6 +192,7 @@ cmd_run() {
     log_section "run: ${run_id}"
     log_info "Лог: ${main_log}"
     log_info "Сценарии: ${scenarios[*]}"
+    log_info "Нагрузка: threads=${WL_RUN_THREADS} duration=${WL_RUN_DURATION}s window=${WL_RUN_WINDOW}s rate=${WL_RUN_RATE:-unlimited}"
 
     local pids=()
     local sc

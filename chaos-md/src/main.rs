@@ -322,11 +322,23 @@ fn on_key(app: &mut App, k: KeyEvent) -> bool {
     }
 
     if k.code == KeyCode::Tab {
-        app.focus = match app.focus {
-            Focus::Selector => Focus::Log,
-            Focus::Log => Focus::Timeline,
-            Focus::Timeline => Focus::Selector,
-        };
+        if app.focus == Focus::Selector {
+            if matches!(app.current_selector_item(), SelectorItem::Start) {
+                app.focus = Focus::Log;
+            } else {
+                let start_idx = SelectorItem::all().len() - 1;
+                app.selector_idx = start_idx;
+            }
+        } else {
+            match app.focus {
+                Focus::Log => { app.focus = Focus::Timeline; }
+                Focus::Timeline => {
+                    app.focus = Focus::Selector;
+                    app.selector_idx = 0;
+                }
+                Focus::Selector => { app.focus = Focus::Log; }
+            }
+        }
         return false;
     }
 

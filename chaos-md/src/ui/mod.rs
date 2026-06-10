@@ -32,9 +32,9 @@ pub fn draw(f: &mut Frame, app: &App) {
     let cols = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Length(28),
-            Constraint::Min(40),
             Constraint::Length(24),
+            Constraint::Min(40),
+            Constraint::Length(23),
         ])
         .split(main_area);
 
@@ -74,7 +74,7 @@ fn draw_menu_bar(f: &mut Frame, _app: &App, area: Rect) {
         .fg(ratatui::style::Color::Gray);
 
     let dots = "·".repeat(area.width.saturating_sub(22) as usize);
-    let text = format!(" 💨  Chaos Prof · v0.4.2  {}", dots);
+    let text = format!(" 🗿 Chaos MD · v0.5.1  {}", dots);
 
     let p = Paragraph::new(ratatui::text::Line::from(text))
         .style(style);
@@ -83,9 +83,9 @@ fn draw_menu_bar(f: &mut Frame, _app: &App, area: Rect) {
 
 fn draw_status_bar(f: &mut Frame, _app: &App, area: Rect) {
     let style = Style::default()
-        .bg(ratatui::style::Color::Reset)
+        .bg(crate::theme::STATUS_BG_DARK)
         .fg(crate::theme::DIM);
-    
+
     let parts = [
         ("Tab", "Фокус"),
         ("c", "Проверка"),
@@ -96,7 +96,7 @@ fn draw_status_bar(f: &mut Frame, _app: &App, area: Rect) {
     let mut left_spans = Vec::new();
     for (k, v) in parts {
         left_spans.push(Span::styled(format!(" {k} "), Style::default().bg(crate::theme::CYBER_GRAY).fg(crate::theme::OK).add_modifier(ratatui::style::Modifier::BOLD)));
-        left_spans.push(Span::styled(format!(" {v}  "), Style::default().fg(ratatui::style::Color::White)));
+        left_spans.push(Span::styled(format!(" {v}  "), Style::default().bg(crate::theme::STATUS_BG_DARK).fg(ratatui::style::Color::White)));
     }
 
     let right_text = " YDB · 2026 ";

@@ -1,6 +1,5 @@
 //! Диалог конфигурации — параметры окружения и приложения.
 
-use std::env;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -28,7 +27,7 @@ pub fn draw(f: &mut Frame, app: &App) {
     let block = Block::default()
         .title(Line::from(vec![marker, title_span]))
         .title_bottom(Line::from(Span::styled(
-            " Esc · o — закрыть ",
+            " Esc · i — закрыть ",
             Style::default().fg(theme::CONFIG_BORDER),
         )))
         .borders(Borders::ALL)
@@ -38,55 +37,58 @@ pub fn draw(f: &mut Frame, app: &App) {
     let inner = block.inner(area);
     f.render_widget(block, area);
 
+    // key column = 25, separator "║ " = 2, остаток — под value
+    let val_width = (inner.width.saturating_sub(2) as usize).saturating_sub(25 + 2);
+
     let mut lines: Vec<Line> = Vec::new();
 
-    // Добавляем пустую строку сверху для отступа
     lines.push(Line::raw(""));
 
     // Параметры приложения
-    lines.push(format_row("Repo root", app.repo_root.display().to_string().as_str()));
-    lines.push(format_row("Time -t", &format!("{}s", app.time_test_s)));
-    lines.push(format_row("Wait pause", &format!("{}s", app.time_wait_s)));
+    lines.push(format_row("Repo root", &app.repo_root.display().to_string(), val_width));
+    lines.push(format_row("Time -t", &format!("{}s", app.time_test_s), val_width));
+    lines.push(format_row("Wait pause", &format!("{}s", app.time_wait_s), val_width));
 
     let node_mark = if app.phases.node { "✓" } else { " " };
-    lines.push(format_row("Phase node", node_mark));
+    lines.push(format_row("Phase node", node_mark, val_width));
 
     let dc_mark = if app.phases.dc { "✓" } else { " " };
-    lines.push(format_row("Phase dc", dc_mark));
+    lines.push(format_row("Phase dc", dc_mark, val_width));
 
     let count = app.selected.iter().filter(|&&x| x).count();
     let total = CATALOG.len();
-    lines.push(format_row("Tests selected", &format!("{} / {}", count, total)));
+    lines.push(format_row("Tests selected", &format!("{} / {}", count, total), val_width));
 
     let dry_mark = if app.dry_run { "Yes" } else { "No" };
-    lines.push(format_row("Dry-run", dry_mark));
+    lines.push(format_row("Dry-run", dry_mark, val_width));
 
-    // Пусто между разделами
     lines.push(Line::raw(""));
 
-    // Переменные окружения
-    lines.push(format_row("SINGLE_HOST", &env_or_dash("SINGLE_HOST")));
-    lines.push(format_row("DC_HOSTS", &env_or_dash("DC_HOSTS")));
-    lines.push(format_row("NET_IFACE", &env_or_dash("NET_IFACE")));
-    lines.push(format_row("DEFAULT_NET_DELAY", &env_or_dash("DEFAULT_NET_DELAY")));
-    lines.push(format_row("DEFAULT_NET_LOSS", &env_or_dash("DEFAULT_NET_LOSS")));
-    lines.push(format_row("DEFAULT_BW_RATE", &env_or_dash("DEFAULT_BW_RATE")));
-    lines.push(format_row("YDB_PORTS", &env_or_dash("YDB_PORTS")));
-    lines.push(format_row("YDBD_STORAGE_SERVICE", &env_or_dash("YDBD_STORAGE_SERVICE")));
-    lines.push(format_row("YDBD_TENANT_SERVICES", &env_or_dash("YDBD_TENANT_SERVICES")));
-    lines.push(format_row("YDBD_TENANT_UNIT_GLOB", &env_or_dash("YDBD_TENANT_UNIT_GLOB")));
-    lines.push(format_row("DEFAULT_MEM_PERCENT", &env_or_dash("DEFAULT_MEM_PERCENT")));
-    lines.push(format_row("DEFAULT_MEM_RATE", &env_or_dash("DEFAULT_MEM_RATE")));
-    lines.push(format_row("DEFAULT_DISK_DEVICE", &env_or_dash("DEFAULT_DISK_DEVICE")));
-    lines.push(format_row("DEFAULT_YDBD_BIN", &env_or_dash("DEFAULT_YDBD_BIN")));
-    lines.push(format_row("SSH_OPTS", &env_or_dash("SSH_OPTS")));
-    lines.push(format_row("GRAFANA_URL", &env_or_dash("GRAFANA_URL")));
-    lines.push(format_row("GRAFANA_TOKEN", &env_or_dash("GRAFANA_TOKEN")));
+    // Переменные окружения из env.sh
+    let cfg = &app.env_config;
+    let ev = |k: &str| cfg.get(k).map(|s| s.as_str()).unwrap_or("—").to_string();
+
+    lines.push(format_row("SINGLE_HOST",           &ev("SINGLE_HOST"),           val_width));
+    lines.push(format_row("DC_HOSTS",              &ev("DC_HOSTS"),              val_width));
+    lines.push(format_row("NET_IFACE",             &ev("NET_IFACE"),             val_width));
+    lines.push(format_row("DEFAULT_NET_DELAY",     &ev("DEFAULT_NET_DELAY"),     val_width));
+    lines.push(format_row("DEFAULT_NET_LOSS",      &ev("DEFAULT_NET_LOSS"),      val_width));
+    lines.push(format_row("DEFAULT_BW_RATE",       &ev("DEFAULT_BW_RATE"),       val_width));
+    lines.push(format_row("YDB_PORTS",             &ev("YDB_PORTS"),             val_width));
+    lines.push(format_row("YDBD_STORAGE_SERVICE",  &ev("YDBD_STORAGE_SERVICE"),  val_width));
+    lines.push(format_row("YDBD_TENANT_SERVICES",  &ev("YDBD_TENANT_SERVICES"),  val_width));
+    lines.push(format_row("YDBD_TENANT_UNIT_GLOB", &ev("YDBD_TENANT_UNIT_GLOB"), val_width));
+    lines.push(format_row("DEFAULT_MEM_PERCENT",   &ev("DEFAULT_MEM_PERCENT"),   val_width));
+    lines.push(format_row("DEFAULT_MEM_RATE",      &ev("DEFAULT_MEM_RATE"),      val_width));
+    lines.push(format_row("DEFAULT_DISK_DEVICE",   &ev("DEFAULT_DISK_DEVICE"),   val_width));
+    lines.push(format_row("DEFAULT_YDBD_BIN",      &ev("DEFAULT_YDBD_BIN"),      val_width));
+    lines.push(format_row("SSH_OPTS",              &ev("SSH_OPTS"),              val_width));
+    lines.push(format_row("GRAFANA_URL",           &ev("GRAFANA_URL"),           val_width));
+    lines.push(format_row("GRAFANA_TOKEN",         &ev("GRAFANA_TOKEN"),         val_width));
 
     let p = Paragraph::new(lines)
         .style(Style::default().bg(theme::CONFIG_BG).fg(theme::CONFIG_FG));
 
-    // Смещение на 1 символ вправо
     let inner_offset = Rect {
         x: inner.x + 1,
         y: inner.y,
@@ -97,11 +99,7 @@ pub fn draw(f: &mut Frame, app: &App) {
     f.render_widget(p, inner_offset);
 }
 
-fn env_or_dash(key: &str) -> String {
-    env::var(key).unwrap_or_else(|_| "—".to_string())
-}
-
-fn format_row(key: &str, value: &str) -> Line<'static> {
+fn format_row(key: &str, value: &str, val_width: usize) -> Line<'static> {
     Line::from(vec![
         Span::styled(
             format!("{:<25}", key),
@@ -112,15 +110,18 @@ fn format_row(key: &str, value: &str) -> Line<'static> {
             Style::default().fg(theme::CONFIG_BORDER),
         ),
         Span::styled(
-            truncate_value(value, 40),
+            truncate_value(value, val_width),
             Style::default().fg(theme::CONFIG_FG),
         ),
     ])
 }
 
 fn truncate_value(s: &str, max: usize) -> String {
-    if s.len() > max {
-        format!("{}…", &s[..max - 1])
+    if max == 0 { return s.to_string(); }
+    let chars: Vec<char> = s.chars().collect();
+    if chars.len() > max {
+        let truncated: String = chars[..max - 1].iter().collect();
+        format!("{}…", truncated)
     } else {
         s.to_string()
     }

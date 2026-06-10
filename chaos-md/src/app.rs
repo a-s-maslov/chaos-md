@@ -1,7 +1,7 @@
 //! Состояние приложения.
 
-use std::collections::VecDeque;
-use std::path::PathBuf;
+use std::collections::{HashMap, VecDeque};
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Local};
@@ -121,6 +121,7 @@ pub struct App {
 
     // диалог конфигурации
     pub config_dialog_open: bool,
+    pub env_config: HashMap<String, String>,
 
     // остановка текущей очереди тестов
     pub chaos_started_at: Option<Instant>,
@@ -135,6 +136,7 @@ impl App {
     pub fn new(repo_root: PathBuf) -> Self {
         let log_dir = repo_root.join("logs");
         let timeline_path = log_dir.join("timeline.log");
+        let env_config = parse_env_sh(&repo_root.join("env.sh"));
         Self {
             repo_root,
             log_dir,
@@ -161,6 +163,7 @@ impl App {
             check_dialog: None,
             pending_check: None,
             config_dialog_open: false,
+            env_config,
             chaos_started_at: None,
             force_redraw: false,
             stop_requested: false,
@@ -217,3 +220,73 @@ pub fn fmt_hms(s: u32) -> String {
 
 #[allow(dead_code)]
 pub const TICK: Duration = Duration::from_millis(250);
+
+/// Читает env.sh и возвращает map KEY → value.
+/// Поддерживает простые присвоения и bash-массивы (join через пробел).
+pub fn parse_env_sh(path: &Path) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    let Ok(text) = std::fs::read_to_string(path) else { return map; };
+
+    let mut iter = text.lines().peekable();
+    while let Some(line) = iter.next() {
+        let trimmed = line.trim();
+        // Пропускаем комментарии, пустые строки и команды
+        if trimmed.is_empty() || trimmed.starts_with('#') { continue; }
+
+        // Убираем необязательный префикс export
+        let trimmed = trimmed.strip_prefix("export ").unwrap_or(trimmed);
+
+        let Some(eq_pos) = trimmed.find('=') else { continue; };
+        let key = trimmed[..eq_pos].trim().to_string();
+        if key.contains(' ') || key.is_empty() { continue; }
+        let val_part = trimmed[eq_pos + 1..].trim();
+
+        // Массив: KEY=( или KEY=(item...
+        if val_part.starts_with('(') {
+            let mut items: Vec<String> = Vec::new();
+            let first_line = val_part.trim_start_matches('(');
+            let (done, tail) = collect_array_items(first_line, &mut items);
+            if !done {
+                for cont in iter.by_ref() {
+                    let (done, _) = collect_array_items(cont.trim(), &mut items);
+                    if done { break; }
+                    let _ = tail;
+                }
+            }
+            map.insert(key, items.join(" "));
+            continue;
+        }
+
+        // Простое значение (возможно в кавычках)
+        let value = strip_quotes(val_part)
+            .split('#').next().unwrap_or("").trim().to_string();
+        map.insert(key, value);
+    }
+    map
+}
+
+fn collect_array_items(s: &str, items: &mut Vec<String>) -> (bool, &'static str) {
+    let s = s.trim();
+    // Есть закрывающая скобка?
+    let (body, done) = if let Some(pos) = s.find(')') {
+        (&s[..pos], true)
+    } else {
+        (s, false)
+    };
+    for token in body.split_whitespace() {
+        let t = token.trim_matches(|c| c == '"' || c == '\'');
+        if !t.is_empty() && !t.starts_with('#') {
+            items.push(t.to_string());
+        }
+    }
+    (done, "")
+}
+
+fn strip_quotes(s: &str) -> &str {
+    if (s.starts_with('"') && s.ends_with('"')) ||
+       (s.starts_with('\'') && s.ends_with('\'')) {
+        &s[1..s.len() - 1]
+    } else {
+        s
+    }
+}

@@ -127,7 +127,14 @@ def templating():
                   multi=True, include_all=True),
     ]}
 
-def dashboard(uid, title, tags, panels):
+def nav_link(title, uid):
+    return {
+        "title": title, "type": "link", "icon": "dashboard",
+        "url": f"/d/{uid}", "targetBlank": False,
+        "keepTime": True, "includeVars": True,
+    }
+
+def dashboard(uid, title, tags, panels, links=None):
     return {
         "uid": uid, "title": title, "tags": tags,
         "schemaVersion": 38, "version": 1,
@@ -138,14 +145,14 @@ def dashboard(uid, title, tags, panels):
         "annotations": annotations(),
         "templating": templating(),
         "panels": panels,
-        "links": [],
+        "links": links or [],
     }
 
 def save(uid, title, tags, panels):
     slug = uid.replace("chaos-", "") + ".json"
     path = os.path.join(OUT_DIR, slug)
     with open(path, "w") as f:
-        json.dump(dashboard(uid, title, tags, panels), f, indent=2)
+        json.dump(dashboard(uid, title, tags, panels, links=_dash_links.get(uid)), f, indent=2)
     print(f"  ✓ {path}")
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -276,6 +283,10 @@ def p_query_latency(id_, x, y, w=8, h=8):
 # ──────────────────────────────────────────────────────────────────────────────
 # Layout: y=0 row "Workload", y=1 workload panels (h=8),
 #         y=9 row "Ноды YDB", y=10 specific panels (h=8), y=18 second row.
+
+_dash_links = {
+    "chaos-01-02": [nav_link("← Chaos Tests", "chaos-tests")],
+}
 
 def build_01_02():
     """01, 02 – CPU, RAM"""

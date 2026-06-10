@@ -93,16 +93,18 @@ pub fn draw(f: &mut Frame, app: &App, area: Rect) {
             }
             SelectorItem::Start => {
                 lines.push(Line::raw(""));
+                lines.push(Line::raw(""));
                 let (label, style) = if app.is_running() {
-                    ("▏   СТОП   ▕", Style::default().bg(theme::ERR).fg(ratatui::style::Color::Black).add_modifier(Modifier::BOLD))
+                    ("▏  СТОП  ▕", Style::default().bg(theme::ERR).fg(ratatui::style::Color::Black).add_modifier(Modifier::BOLD))
                 } else if is_cur {
-                    ("[  ЗАПУСК  ]", Style::default().bg(theme::FOCUS).fg(theme::FOCUS_FG).add_modifier(Modifier::BOLD))
+                    ("[ ЗАПУСК ]", Style::default().bg(theme::FOCUS).fg(theme::FOCUS_FG).add_modifier(Modifier::BOLD))
                 } else {
-                    ("[  ЗАПУСК  ]", Style::default().bg(theme::OK_DIM).fg(ratatui::style::Color::White).add_modifier(Modifier::BOLD))
+                    ("[ ЗАПУСК ]", Style::default().bg(theme::OK_DIM).fg(ratatui::style::Color::White).add_modifier(Modifier::BOLD))
                 };
 
-                let left_pad = width.saturating_sub(label.len()) / 2;
-                let right_pad = width.saturating_sub(label.len()) - left_pad;
+                let label_width = label.chars().count();
+                let left_pad = width.saturating_sub(label_width) / 2;
+                let right_pad = width.saturating_sub(label_width + left_pad);
                 let mut spans = vec![Span::raw(" ".repeat(left_pad))];
                 spans.push(Span::styled(label, style));
                 spans.push(Span::raw(" ".repeat(right_pad)));

@@ -856,5 +856,15 @@
       ]
     }
   ],
-  "links": []
+  "links": [
+    {
+      "title": "\u2190 Chaos Tests",
+      "type": "link",
+      "icon": "dashboard",
+      "url": "/d/chaos-tests",
+      "targetBlank": false,
+      "keepTime": true,
+      "includeVars": true
+    }
+  ]
 }
