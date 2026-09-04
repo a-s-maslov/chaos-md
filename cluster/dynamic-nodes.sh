@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# Идемпотентное изменение числа dynamic YDB nodes для демонстрации эластичности.
+# Управляет только явно настроенным tenant service; storage service не трогает.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+source "${REPO_ROOT}/lib/config.sh"
+chaos_load_env "${REPO_ROOT}"
+[[ ! -f "${SCRIPT_DIR}/env.local.sh" ]] || source "${SCRIPT_DIR}/env.local.sh"
+source "${REPO_ROOT}/lib/term.sh"
+source "${REPO_ROOT}/lib/ssh.sh"
+source "${REPO_ROOT}/lib/grafana.sh"
+
+COMMAND="${1:-}"
+COUNT="${2:-}"
+WAIT_SECONDS="${DYNAMIC_NODE_WAIT_SECONDS:-60}"
+CHAOS_DRY_RUN="${CHAOS_DRY_RUN:-false}"
+
+usage() {
+    cat <<'EOF'
+Использование:
+  cluster/dynamic-nodes.sh status
+  cluster/dynamic-nodes.sh set COUNT [--wait SEC] [--dry-run]
+
+Нужны DYNAMIC_NODE_HOSTS=(...) и YDBD_DYNAMIC_SERVICE в env.sh/env.local.sh
+или в локальном cluster/env.local.sh.
+Первые COUNT хостов остаются включёнными, остальные выключаются.
+EOF
+}
+
+shift $(( $# > 0 ? 1 : 0 ))
+[[ "${COMMAND}" != set || $# -eq 0 ]] || shift
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --wait) WAIT_SECONDS="${2:?--wait требует SEC}"; shift 2 ;;
+        --dry-run|-n) CHAOS_DRY_RUN=true; shift ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "Неизвестная опция: $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+
+[[ "${COMMAND}" == status || "${COMMAND}" == set ]] || { usage; exit 2; }
+[[ -n "${YDBD_DYNAMIC_SERVICE:-}" ]] || { echo "YDBD_DYNAMIC_SERVICE не задан" >&2; exit 2; }
+[[ "${YDBD_DYNAMIC_SERVICE}" =~ ^[A-Za-z0-9_.@-]+$ ]] || { echo "Недопустимое имя service" >&2; exit 2; }
+[[ "${YDBD_DYNAMIC_SERVICE}" != "${YDBD_STORAGE_SERVICE:-}" ]] || {
+    echo "Отказ: dynamic service совпадает со storage service" >&2; exit 2;
+}
+declare -p DYNAMIC_NODE_HOSTS >/dev/null 2>&1 || { echo "DYNAMIC_NODE_HOSTS не задан" >&2; exit 2; }
+[[ ${#DYNAMIC_NODE_HOSTS[@]} -gt 0 ]] || { echo "DYNAMIC_NODE_HOSTS пуст" >&2; exit 2; }
+[[ "${WAIT_SECONDS}" =~ ^[0-9]+$ ]] || { echo "--wait должен быть числом" >&2; exit 2; }
+
+node_active() {
+    ssh_run "$1" sudo systemctl is-active --quiet "${YDBD_DYNAMIC_SERVICE}"
+}
+
+status() {
+    local host state active=0
+    for host in "${DYNAMIC_NODE_HOSTS[@]}"; do
+        if node_active "${host}"; then state=ACTIVE; active=$((active + 1)); else state=STOPPED; fi
+        printf '%-36s %s\n' "${host}" "${state}"
+    done
+    echo "active dynamic nodes: ${active}/${#DYNAMIC_NODE_HOSTS[@]}"
+}
+
+annotate() {
+    local text="$1" marker="dynamic-nodes"
+    mkdir -p "${LOG_DIR:-${REPO_ROOT}/logs}"
+    printf '%s  %-16s  %s\n' "$(date -Iseconds)" "CLUSTER_SCALE" "${text}" \
+        >>"${LOG_DIR:-${REPO_ROOT}/logs}/timeline.log"
+    grafana_region_open "${marker}" "CLUSTER_SCALE  ${text}" control
+    grafana_region_close "${marker}"
+}
+
+if [[ "${COMMAND}" == status ]]; then
+    status
+    exit 0
+fi
+
+[[ "${COUNT}" =~ ^[0-9]+$ ]] || { echo "COUNT должен быть целым числом" >&2; exit 2; }
+(( COUNT >= 1 && COUNT <= ${#DYNAMIC_NODE_HOSTS[@]} )) || {
+    echo "COUNT должен быть от 1 до ${#DYNAMIC_NODE_HOSTS[@]}" >&2; exit 2;
+}
+
+# Сначала запускаем все целевые процессы. Только после проверки останавливаем
+# лишние: это не создаёт искусственного окна без вычислительных узлов.
+for ((i=0; i<COUNT; i++)); do
+    ssh_run "${DYNAMIC_NODE_HOSTS[i]}" sudo systemctl start "${YDBD_DYNAMIC_SERVICE}"
+done
+
+if [[ "${CHAOS_DRY_RUN}" != true ]]; then
+    deadline=$(( $(date +%s) + WAIT_SECONDS ))
+    for ((i=0; i<COUNT; i++)); do
+        until node_active "${DYNAMIC_NODE_HOSTS[i]}"; do
+            (( $(date +%s) < deadline )) || {
+                echo "Узел ${DYNAMIC_NODE_HOSTS[i]} не запустился за ${WAIT_SECONDS}s" >&2
+                exit 1
+            }
+            sleep 2
+        done
+    done
+fi
+
+for ((i=COUNT; i<${#DYNAMIC_NODE_HOSTS[@]}; i++)); do
+    ssh_run "${DYNAMIC_NODE_HOSTS[i]}" sudo systemctl stop "${YDBD_DYNAMIC_SERVICE}"
+done
+
+if [[ "${CHAOS_DRY_RUN}" != true ]]; then
+    annotate "dynamic nodes = ${COUNT}"
+fi
+status

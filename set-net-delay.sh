@@ -6,7 +6,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=env.sh
-source "${SCRIPT_DIR}/env.sh"
+source "${SCRIPT_DIR}/lib/config.sh"
+chaos_load_env "${SCRIPT_DIR}"
 # shellcheck source=lib/net.sh
 source "${SCRIPT_DIR}/lib/net.sh"
 # shellcheck source=lib/log.sh

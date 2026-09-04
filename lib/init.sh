@@ -14,9 +14,11 @@ fi
 CHAOS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHAOS_REPO_DIR="$(cd "${CHAOS_LIB_DIR}/.." && pwd)"
 
-# env.sh должен лежать рядом с lib/.
-# shellcheck source=../env.sh
-source "${CHAOS_REPO_DIR}/env.sh"
+# env.sh должен лежать рядом с lib/. Необязательный env.local.sh загружается
+# после него и подходит для секретов и локальных переопределений.
+# shellcheck source=config.sh
+source "${CHAOS_LIB_DIR}/config.sh"
+chaos_load_env "${CHAOS_REPO_DIR}"
 
 # Интерфейсы по хосту, CHAOS_NET_IPV4 / CHAOS_NET_IPV6 (после env).
 # shellcheck source=net.sh

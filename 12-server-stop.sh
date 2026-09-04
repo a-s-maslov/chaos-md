@@ -8,6 +8,7 @@ TEST_SCOPE="node_or_dc_or_alt"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/init.sh"
+[[ ! -f "${SCRIPT_DIR}/reliability/env.local.sh" ]] || source "${SCRIPT_DIR}/reliability/env.local.sh"
 source "${SCRIPT_DIR}/nemesis/systemd.sh"
 
 TEST_DESC="Тест 12 — остановка systemd-юнитов ydbd с авто-стартом по таймеру."
@@ -72,8 +73,9 @@ trap 'log_tl "CHAOS_CANCEL" "server stop  (прервано)" || true; chaos_log
 
 chaos_announce "stop ${YDBD_STORAGE_SERVICE} + ${#YDBD_TENANT_SERVICES[@]} tenant  timeout=${TIMEOUT}s  scope=${SCOPE_LABEL}"
 
-# Хаос завершается фоновым recovery-скриптом на хосте (через TIMEOUT секунд).
-# Локально ждём то же окно с тикером.
-chaos_run_window_no_teardown "server stop" nemesis_systemd_stop_apply_all
+# Recovery-скрипт на хосте страхует восстановление при обрыве управляющей
+# сессии. При штатном завершении выполняем тот же идемпотентный teardown явно:
+# так CHAOS_END ставится только после фактического старта storage и tenant.
+chaos_run_window "server stop" nemesis_systemd_stop_apply_all nemesis_systemd_stop_teardown_all
 
 trap 'chaos_log_script_end' EXIT

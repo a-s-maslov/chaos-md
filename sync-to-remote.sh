@@ -18,7 +18,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SELF_PATH="${SCRIPT_DIR}/$(basename "${BASH_SOURCE[0]}")"
 # shellcheck source=env.sh
-source "${SCRIPT_DIR}/env.sh"
+source "${SCRIPT_DIR}/lib/config.sh"
+chaos_load_env "${SCRIPT_DIR}"
 
 CHAOS_RSYNC_HOST="${CHAOS_RSYNC_HOST:-${RSYNC_HOST:-}}"
 CHAOS_RSYNC_USER="${CHAOS_RSYNC_USER:-}"

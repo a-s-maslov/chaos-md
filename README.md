@@ -38,7 +38,7 @@ Chaos MD — набор инструментов для проведения у�
 │   └── systemd.sh      — systemctl: stop/restart + rolling upgrade (10, 12)
 ├── chaos-md/                            # TUI диспетчер Chaos MD (Rust)
 ├── chaos-md.sh                          # лаунчер TUI из корня репо
-├── workload/                            # модуль нагрузки YDB (см. workload/README.md)
+├── workload/                            # lifecycle нагрузок (README.md, ARCHITECTURE.md)
 ├── grafana/                             # установка стека мониторинга (см. grafana/README.md)
 ├── Makefile                             # сборка Chaos MD: musl x86_64 + aarch64 + macOS
 ├── build.sh                             # упаковка релизного архива в dist/
@@ -114,6 +114,12 @@ cp env.example.sh env-stand.sh
 | `CHAOS_BLADE_CPU_LOAD_TEMPLATE` и др. | Шаблоны команд ChaosBlade с плейсхолдерами `@CPU_PERCENT@` и т.д. |
 | `GRAFANA_URL`, `GRAFANA_TOKEN` | Опционально: аннотации хаос-окон в Grafana |
 
+`env.sh` хранит конфигурацию стенда. Если рядом есть `env.local.sh`, Chaos MD
+автоматически загружает его после `env.sh`. Это удобно для секретов
+(`GRAFANA_TOKEN`) и локальных путей: файл исключён из Git и может
+переопределять любые значения стенда. Автозагрузку можно отключить переменной
+`CHAOS_SKIP_LOCAL_ENV=true`.
+
 ## Единый CLI всех тестов
 
 | Флаг | Назначение |
@@ -169,6 +175,19 @@ cp env.example.sh env-stand.sh
 ./chaos-md.sh -d --headless --tests 04 -t 5 -p 3 --node   # dry-run без SSH
 ./chaos-md.sh --version
 ```
+
+Нагрузку можно привязать ко всему прогону. Launcher проверит готовность,
+запустит её до первого теста и гарантированно остановит при завершении или
+прерывании:
+
+```bash
+./chaos-md.sh --workload search --headless --tests 12,13 -t 300 --node
+```
+
+Конфигурация конкретной нагрузки хранится в `workload/env.local.sh`. Для
+повторного прогона с уже проверенной схемой можно добавить
+`--skip-workload-prepare`. Независимый ручной запуск остаётся доступен через
+`bash workload/manage.sh --type search ...`.
 
 **Dry-run** (`-d`/`--dry-run`): вся цепочка (announce → apply → wait → teardown) без реальных SSH-вызовов. Жёлтые строки показывают, что бы выполнилось; timeline.log пополняется; тикер работает.
 

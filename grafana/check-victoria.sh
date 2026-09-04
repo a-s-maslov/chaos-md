@@ -7,7 +7,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-source "${REPO_DIR}/env.sh"
+source "${REPO_DIR}/lib/config.sh"
+chaos_load_env "${REPO_DIR}"
 source "${REPO_DIR}/lib/term.sh"
 
 VM_URL="http://localhost:${VM_PORT}"
@@ -104,7 +105,8 @@ printf '  Unique metric names: %s\n' "$TOTAL"
 # === Metrics Count by Job ===
 printf '\n%b[4] Unique Metric Names by Job%b\n' "${C_HOST}" "${C_RESET}"
 
-for job in node ydb ydb-dynodes; do
+CHECK_JOBS=(workload node ydb/ydb ydb/kqp ydb/grpc)
+for job in "${CHECK_JOBS[@]}"; do
     # count of unique metric names for this job
     COUNT=$(_vm_query "count(count by (__name__) ({job=\"${job}\"}))")
     if [[ -n "$COUNT" && "$COUNT" != "0" ]]; then
@@ -147,7 +149,7 @@ fi
 # === Sample Metrics ===
 printf '\n%b[6] Sample Metric Names%b\n' "${C_HOST}" "${C_RESET}"
 
-for job in node ydb ydb-dynodes; do
+for job in "${CHECK_JOBS[@]}"; do
     SAMPLE=$(curl -sf -m ${TIMEOUT} -G --data-urlencode "query=count by (__name__) ({job=\"${job}\"})" "${VM_URL}/api/v1/query" 2>/dev/null | \
         jq -r '.data.result[0:3] | .[] | .metric.__name__' 2>/dev/null | head -3 || echo "")
 

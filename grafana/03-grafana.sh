@@ -18,6 +18,7 @@
 #
 # Опции:
 #   --check     Показать статус контейнера и проверить http://localhost:${GRAFANA_PORT}/login
+#   --replace   Удалить существующий контейнер grafana перед запуском.
 #   --dry-run   Печатать команды, не выполнять
 #   -h, --help  Справка
 #
@@ -28,7 +29,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # shellcheck source=../env.sh
-source "${REPO_DIR}/env.sh"
+source "${REPO_DIR}/lib/config.sh"
+chaos_load_env "${REPO_DIR}"
 # shellcheck source=../lib/term.sh
 source "${REPO_DIR}/lib/term.sh"
 mkdir -p "${LOG_DIR}"
@@ -37,6 +39,7 @@ LOG_FILE="${LOG_DIR}/grafana-03-grafana.log"
 source "${REPO_DIR}/lib/log.sh"
 
 MODE_CHECK=false
+MODE_REPLACE=false
 CHAOS_DRY_RUN="${CHAOS_DRY_RUN:-false}"
 
 usage() {
@@ -44,6 +47,7 @@ usage() {
 $(basename "$0") — install Grafana in docker on ${MON_HOST}.
 
   --check       Показать статус контейнера и доступность UI
+  --replace     Явно заменить существующий контейнер grafana
   --dry-run     Печатать команды, не выполнять
   -h, --help    Справка
 
@@ -59,6 +63,7 @@ EOF
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --check)    MODE_CHECK=true; shift ;;
+        --replace)  MODE_REPLACE=true; shift ;;
         --dry-run)  CHAOS_DRY_RUN=true; shift ;;
         -h|--help)  usage; exit 0 ;;
         *) echo "Неизвестный параметр: $1" >&2; usage >&2; exit 1 ;;
@@ -73,7 +78,7 @@ run_cmd() {
     eval "$@"
 }
 
-ADMIN_PWD="${GRAFANA_ADMIN_PASSWORD:-admin}"
+export GF_SECURITY_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD:-admin}"
 
 if [[ "${MODE_CHECK}" == "true" ]]; then
     log_section "Проверка Grafana на ${MON_HOST}"
@@ -96,11 +101,17 @@ fi
 run_cmd "sudo mkdir -p ${GRAFANA_DATA_DIR}"
 run_cmd "sudo chown -R 472:472 ${GRAFANA_DATA_DIR}"
 
-# Перезапуск контейнера: rm существующий, затем run.
-run_cmd "docker rm -f grafana 2>/dev/null || true"
+# По умолчанию не трогаем существующий контейнер с таким именем.
+if [[ "${CHAOS_DRY_RUN}" != "true" ]] && docker container inspect grafana >/dev/null 2>&1; then
+    if [[ "${MODE_REPLACE}" != "true" ]]; then
+        log "ОШИБКА: контейнер grafana уже существует. Проверьте его или повторите с --replace."
+        exit 1
+    fi
+    run_cmd "docker rm -f grafana"
+fi
 run_cmd "docker run -d --name grafana --restart unless-stopped \
     --network host \
-    -e GF_SECURITY_ADMIN_PASSWORD='${ADMIN_PWD}' \
+    -e GF_SECURITY_ADMIN_PASSWORD \
     -e GF_SERVER_HTTP_PORT='${GRAFANA_PORT}' \
     -v ${GRAFANA_DATA_DIR}:/var/lib/grafana \
     -v ${PROV_DIR}:/etc/grafana/provisioning:ro \
@@ -110,7 +121,7 @@ run_cmd "docker run -d --name grafana --restart unless-stopped \
 if [[ "${CHAOS_DRY_RUN}" != "true" ]]; then
     sleep 3
     if curl -sf -o /dev/null "http://localhost:${GRAFANA_PORT}/login"; then
-        log "✓ Grafana доступна на http://${MON_HOST}:${GRAFANA_PORT}/  (admin / ${ADMIN_PWD})"
+        log "✓ Grafana доступна на http://${MON_HOST}:${GRAFANA_PORT}/ (user: admin; пароль из env.local.sh)"
     else
         log "ПРЕДУПРЕЖДЕНИЕ: /login пока недоступен. docker logs grafana"
     fi

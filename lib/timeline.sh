@@ -13,7 +13,7 @@ log_tl() {
         CHAOS_START)
             printf "%-26s  %-16s  %s\n" "$(now_msk)" "${event}" "${details}" \
                 | tee -a "${timeline}"
-            grafana_region_open "${TEST_NAME}" "${event}  ${details}"
+            grafana_region_open "${TEST_NAME}" "${event}  ${details}" failure
             ;;
         CHAOS_END*|CHAOS_CANCEL)
             printf "%-26s  %-16s  %s\n" "$(now_msk)" "${event}" "${details}" \

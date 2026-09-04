@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Деплой дашборда Grafana через API из grafana/dashboards/chaos-tests.json.
+# Деплой дашборда Grafana через API из
+# grafana/dashboards/chaos/chaos-tests.json.
 # Создаёт дашборд если не существует, обновляет существующий (по заголовку).
 # Последнее использованное имя сохраняет в grafana/.chaos-grafana-last.
 #
@@ -9,15 +10,23 @@
 # Сценарий использования:
 #   ./grafana/deploy-dashboard.sh           # интерактивно; дефолт — последнее имя
 #   GRAFANA_DASH_NAME="Chaos Tests" ./grafana/deploy-dashboard.sh
+#   GRAFANA_DASH_FILE="grafana/dashboards/chaos/deep-tech-search-demo.json" \
+#     GRAFANA_DASH_NAME="Deep Tech: YDB Search Demo" ./grafana/deploy-dashboard.sh
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # shellcheck source=../env.sh
-source "${REPO_DIR}/env.sh"
+source "${REPO_DIR}/lib/config.sh"
+chaos_load_env "${REPO_DIR}"
 
-DASHBOARD_JSON="${SCRIPT_DIR}/dashboards/chaos-tests.json"
+DASHBOARD_FILE="${GRAFANA_DASH_FILE:-grafana/dashboards/chaos/chaos-tests.json}"
+if [[ "${DASHBOARD_FILE}" = /* ]]; then
+    DASHBOARD_JSON="${DASHBOARD_FILE}"
+else
+    DASHBOARD_JSON="${REPO_DIR}/${DASHBOARD_FILE}"
+fi
 STATE_FILE="${SCRIPT_DIR}/.chaos-grafana-last"
 FALLBACK_NAME="Chaos Tests"
 

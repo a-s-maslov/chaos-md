@@ -7,6 +7,7 @@ TEST_SCOPE="either"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/init.sh"
+[[ ! -f "${SCRIPT_DIR}/reliability/env.local.sh" ]] || source "${SCRIPT_DIR}/reliability/env.local.sh"
 source "${SCRIPT_DIR}/nemesis/proc.sh"
 
 TEST_DESC="Тест 09 — SIGKILL процессов ydbd (-1 одна нода или -4 весь ДЦ); затем наблюдение и опц. явный рестарт."
@@ -40,7 +41,7 @@ done
 if [[ "${MODE_CHECK}" == true ]]; then
     if [[ "${SCOPE_SINGLE}" == true || "${SCOPE_DC}" == true || "${SCOPE_DC_ALT}" == true ]]; then
         chaos_resolve_targets
-        local _h
+        _h=""
         for _h in "${TARGET_HOSTS[@]}"; do
             nemesis_proc_check "${_h}"
         done
