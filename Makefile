@@ -21,9 +21,14 @@ MAC_ARCH    := $(shell uname -m)
 
 CARGO_SOURCES := $(shell find $(ORCH)/src -name '*.rs' 2>/dev/null) $(ORCH)/Cargo.toml
 
-.PHONY: all orch package dev mac clean check-docker
+.PHONY: all orch package dev mac clean check-docker test-shell
 
 all: orch
+
+test-shell:
+	bash tests/hosts-smoke.sh
+	bash tests/grafana-annotations-smoke.sh
+	python3 grafana/tests/dashboard-smoke.py
 
 check-docker:
 	@command -v docker >/dev/null 2>&1 || { echo "Нужен Docker: https://docs.docker.com/get-docker/"; exit 1; }

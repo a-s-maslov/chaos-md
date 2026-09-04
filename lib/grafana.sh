@@ -20,25 +20,54 @@ _grafana_id_file() {
 }
 
 _grafana_json_text() {
-    if command -v python3 >/dev/null 2>&1; then
-        printf '%s' "$1" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'
-    else
-        printf '"%s"' "${1//\"/\\\"}"
+    local text="$1" encoded python_cmd
+
+    # jq/Python дают полное JSON-кодирование, но не являются обязательными.
+    if command -v jq >/dev/null 2>&1; then
+        printf '%s' "${text}" | jq -Rs .
+        return
     fi
+
+    for python_cmd in python3 python; do
+        if command -v "${python_cmd}" >/dev/null 2>&1; then
+            if encoded="$(printf '%s' "${text}" | "${python_cmd}" -c \
+                'import json,sys; print(json.dumps(sys.stdin.read()))' 2>/dev/null)"; then
+                printf '%s' "${encoded}"
+                return
+            fi
+        fi
+    done
+
+    # Достаточный fallback для управляемых строк timeline без внешних утилит.
+    text=${text//\\/\\\\}
+    text=${text//\"/\\\"}
+    text=${text//$'\b'/\\b}
+    text=${text//$'\f'/\\f}
+    text=${text//$'\n'/\\n}
+    text=${text//$'\r'/\\r}
+    text=${text//$'\t'/\\t}
+    printf '"%s"' "${text}"
 }
 
 # Открыть регион. Сохраняет id для дальнейшего close.
+# Необязательный третий аргумент классифицирует событие для дашбордов:
+# failure (default), workload или control. Базовый тег chaos сохраняется.
 grafana_region_open() {
-    local test_name="$1" text="$2"
+    local test_name="$1" text="$2" event_kind="${3:-failure}"
     [[ -z "${GRAFANA_URL:-}" ]] && return 0
+
+    if [[ ! "${event_kind}" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
+        echo "grafana: WARNING invalid event kind (${event_kind}), using failure" >&2
+        event_kind="failure"
+    fi
 
     local time_ms id_file payload response annot_id
     time_ms="$(_grafana_time_ms)"
     id_file="$(_grafana_id_file "${test_name}")"
     local chaos_tag="chaos"
     [[ "${CHAOS_DRY_RUN:-false}" == "true" ]] && chaos_tag="chaos-dry"
-    payload="$(printf '{"time":%s,"timeEnd":%s,"tags":["%s","%s"],"text":%s}' \
-        "${time_ms}" "${time_ms}" "${chaos_tag}" "${test_name}" "$(_grafana_json_text "${text}")")"
+    payload="$(printf '{"time":%s,"timeEnd":%s,"tags":["%s","event:%s","%s"],"text":%s}' \
+        "${time_ms}" "${time_ms}" "${chaos_tag}" "${event_kind}" "${test_name}" "$(_grafana_json_text "${text}")")"
 
     response=$(curl -sfk --max-time 5 \
         -XPOST "${GRAFANA_URL}/api/annotations" \

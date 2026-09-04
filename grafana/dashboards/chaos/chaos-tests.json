@@ -8,7 +8,9 @@
     "from": "now-1h",
     "to": "now"
   },
-  "timepicker": {},
+  "timepicker": {
+    "nowDelay": "2s"
+  },
   "annotations": {
     "list": [
       {
@@ -172,12 +174,12 @@
       "targets": [
         {
           "expr": "sum by (scenario) (ydb_workload_rps{application=~\"$application\", scenario=~\"$scenario\", statut=\"ok\"})",
-          "legendFormat": "{{scenario}} ok",
+          "legendFormat": "{{scenario}} actual",
           "refId": "A"
         },
         {
-          "expr": "sum by (scenario) (ydb_workload_rps{application=~\"$application\", scenario=~\"$scenario\", statut=\"ko\"})",
-          "legendFormat": "{{scenario}} errors",
+          "expr": "sum by (scenario) (ydb_workload_target_rps{application=~\"$application\", scenario=~\"$scenario\", statut=\"ok\"})",
+          "legendFormat": "{{scenario}} target",
           "refId": "B"
         }
       ],
@@ -253,7 +255,7 @@
     },
     {
       "type": "timeseries",
-      "title": "Retries",
+      "title": "Retries / Dropped",
       "id": 4,
       "datasource": {
         "type": "prometheus",
@@ -303,8 +305,13 @@
       "targets": [
         {
           "expr": "sum by (scenario) (ydb_workload_retries{application=~\"$application\", scenario=~\"$scenario\"})",
-          "legendFormat": "{{scenario}}",
+          "legendFormat": "{{scenario}} retries",
           "refId": "A"
+        },
+        {
+          "expr": "sum by (scenario) (ydb_workload_dropped{application=~\"$application\", scenario=~\"$scenario\"})",
+          "legendFormat": "{{scenario}} dropped",
+          "refId": "B"
         }
       ],
       "options": {
@@ -3829,6 +3836,183 @@
         }
       ],
       "title": "\u2211 Swap used",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 116 },
+      "id": 138,
+      "panels": [],
+      "title": "Search index partitions",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line", "lineInterpolation": "stepAfter", "lineWidth": 2,
+            "fillOpacity": 4, "showPoints": "auto", "pointSize": 3,
+            "spanNulls": false, "gradientMode": "none",
+            "stacking": { "mode": "none", "group": "A" }
+          },
+          "min": 0, "decimals": 0, "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 117 },
+      "id": 139,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [{
+        "datasource": { "type": "prometheus", "uid": "$ds" },
+        "expr": "ydb_partition_count{application=~\"$application\"}",
+        "legendFormat": "{{path}}", "refId": "A"
+      }],
+      "title": "Partitions by table/index",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line", "lineInterpolation": "linear", "lineWidth": 1,
+            "fillOpacity": 0, "showPoints": "auto", "pointSize": 3,
+            "spanNulls": false, "gradientMode": "none",
+            "stacking": { "mode": "none", "group": "A" }
+          },
+          "min": 0, "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 117 },
+      "id": 140,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [{
+        "datasource": { "type": "prometheus", "uid": "$ds" },
+        "expr": "ydb_partition_size_bytes{application=~\"$application\"}",
+        "legendFormat": "{{path}}", "refId": "A"
+      }],
+      "title": "Data size by table/index",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line", "lineInterpolation": "linear", "lineWidth": 1,
+            "fillOpacity": 0, "showPoints": "auto", "pointSize": 3,
+            "spanNulls": false, "gradientMode": "none",
+            "stacking": { "mode": "none", "group": "A" }
+          },
+          "min": 0, "unit": "cores"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 117 },
+      "id": 141,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [{
+        "datasource": { "type": "prometheus", "uid": "$ds" },
+        "expr": "ydb_partition_cpu_cores{application=~\"$application\"}",
+        "legendFormat": "{{path}}", "refId": "A"
+      }],
+      "title": "CPU by table/index",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 125 },
+      "id": 142,
+      "panels": [],
+      "title": "Actor pools by dynamic node",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$ds" },
+      "description": "User actor pool utilization divided by the dynamically allocated thread count. Auto-config may change that count while the node is running.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line", "lineInterpolation": "linear", "lineWidth": 1,
+            "fillOpacity": 0, "showPoints": "auto", "pointSize": 3,
+            "spanNulls": false, "gradientMode": "none", "insertNulls": false,
+            "stacking": { "mode": "none", "group": "A" }
+          },
+          "min": 0, "max": 100, "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "red", "value": 85 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 126 },
+      "id": 143,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [{
+        "datasource": { "type": "prometheus", "uid": "$ds" },
+        "expr": "100 * rate(utils_ElapsedMicrosec{container=\"ydb-dynamic\",database=~\"$database\",execpool=\"User\"}[$__rate_interval]) / 1000000 / clamp_min(avg_over_time(utils_CurrentThreadCount{container=\"ydb-dynamic\",database=~\"$database\",execpool=\"User\"}[$__rate_interval]), 1)",
+        "legendFormat": "{{instance}}", "refId": "A"
+      }],
+      "title": "User pool utilization by node",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$ds" },
+      "description": "Interconnect actor pool utilization divided by the dynamically allocated thread count. Auto-config may change that count while the node is running.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line", "lineInterpolation": "linear", "lineWidth": 1,
+            "fillOpacity": 0, "showPoints": "auto", "pointSize": 3,
+            "spanNulls": false, "gradientMode": "none", "insertNulls": false,
+            "stacking": { "mode": "none", "group": "A" }
+          },
+          "min": 0, "max": 100, "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "red", "value": 85 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 126 },
+      "id": 144,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [{
+        "datasource": { "type": "prometheus", "uid": "$ds" },
+        "expr": "100 * rate(utils_ElapsedMicrosec{container=\"ydb-dynamic\",database=~\"$database\",execpool=\"IC\"}[$__rate_interval]) / 1000000 / clamp_min(avg_over_time(utils_CurrentThreadCount{container=\"ydb-dynamic\",database=~\"$database\",execpool=\"IC\"}[$__rate_interval]), 1)",
+        "legendFormat": "{{instance}}", "refId": "A"
+      }],
+      "title": "IC pool utilization by node",
       "type": "timeseries"
     }
   ]

@@ -5,8 +5,8 @@
 
 use std::io::Read;
 use std::path::Path;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{anyhow, Result};
@@ -69,7 +69,11 @@ pub fn spawn_step(
         pixel_height: 0,
     })?;
 
-    let mut cmd = CommandBuilder::new("bash");
+    // На Linux достаточно bash из PATH. На Windows системный bash.exe может
+    // оказаться WSL launcher-ом, поэтому путь можно задать явно.
+    let bash_bin =
+        std::env::var("CHAOS_BASH_BIN").unwrap_or_else(|_| "bash".to_string());
+    let mut cmd = CommandBuilder::new(bash_bin);
     cmd.cwd(repo_root);
     cmd.arg("-o");
     cmd.arg("pipefail");
@@ -83,7 +87,9 @@ pub fn spawn_step(
     let child = pair.slave.spawn_command(cmd)?;
     drop(pair.slave);
 
-    let mut reader = pair.master.try_clone_reader()
+    let mut reader = pair
+        .master
+        .try_clone_reader()
         .map_err(|e| anyhow!("PTY clone_reader: {e}"))?;
 
     let stop = Arc::new(AtomicBool::new(false));
@@ -184,6 +190,11 @@ impl portable_pty::Child for ChildProxy {
     fn process_id(&self) -> Option<u32> {
         let g = self.0.lock().unwrap();
         g.process_id()
+    }
+    #[cfg(windows)]
+    fn as_raw_handle(&self) -> Option<std::os::windows::io::RawHandle> {
+        let g = self.0.lock().unwrap();
+        g.as_raw_handle()
     }
 }
 

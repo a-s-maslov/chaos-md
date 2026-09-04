@@ -19,6 +19,19 @@ chaos_resolve_targets() {
         TARGET_HOSTS=("${DC_ALT_HOSTS[@]}")
         SCOPE_LABEL="dc_alt"
     fi
+
+    if [[ ${#TARGET_HOSTS[@]} -eq 0 ]]; then
+        echo "chaos_resolve_targets: для scope=${SCOPE_LABEL:-unknown} список хостов пуст." >&2
+        return 1
+    fi
+
+    local host
+    for host in "${TARGET_HOSTS[@]}"; do
+        if [[ -z "${host}" ]]; then
+            echo "chaos_resolve_targets: для scope=${SCOPE_LABEL} задан пустой хост." >&2
+            return 1
+        fi
+    done
 }
 
 # Список хостов для отката, когда -D без явного scope (-1/-4/-A).

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 03 — «Отказ» диска для YDB: смена GPT partition name (sgdisk) на CHAOS_DISK_LABEL_CHAOS.
-# Восстановление — возврат CHAOS_DISK_LABEL_NORMAL + partx -u (таймер или -D).
+# Восстановление — возврат сохранённой исходной метки + partx -u (таймер или -D).
 # В run-all.sh не входит (ручной контроль).
 
 set -euo pipefail
@@ -9,10 +9,11 @@ TEST_SCOPE="single"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/init.sh"
+[[ ! -f "${SCRIPT_DIR}/reliability/env.local.sh" ]] || source "${SCRIPT_DIR}/reliability/env.local.sh"
 source "${SCRIPT_DIR}/nemesis/disk.sh"
 source "${SCRIPT_DIR}/nemesis/proc.sh"   # nemesis_proc_ydbd_restart
 
-TEST_DESC="Тест 03 — диск: смена partlabel (sgdisk), устройство по умолчанию vdb."
+TEST_DESC="Тест 03 — диск: проверенная смена partlabel (sgdisk) с восстановлением исходной метки."
 
 DEVICE="${DEFAULT_DISK_DEVICE:-vdb}"
 RESTART_STORAGE="${CHAOS_DISK_RESTART_STORAGE}"
@@ -77,9 +78,14 @@ log_tl "CHAOS_START" "disk fail  scope=node  host=${NODE_HOST}  device=${DEVICE}
 log_wait_sec "${TIMEOUT}"
 chaos_wait_with_timer "${TIMEOUT}" "disk fail  ${NODE_HOST}"
 
-log_tl "CHAOS_END  " "disk fail  scope=node  host=${NODE_HOST}  device=${DEVICE}"
+# Таймер на сервере страхует восстановление при обрыве управляющей сессии.
+# Здесь выполняем идемпотентное синхронное восстановление, чтобы CHAOS_END
+# означал не истечение таймера, а фактический возврат диска.
+nemesis_disk_teardown "${NODE_HOST}" "${DEVICE}"
 
 if [[ "${RESTART_STORAGE}" == true ]]; then
-    log "Перезапуск storage после автовосстановления метки"
+    log "Перезапуск storage после восстановления метки"
     nemesis_proc_ydbd_restart "${NODE_HOST}"
 fi
+
+log_tl "CHAOS_END  " "disk fail  scope=node  host=${NODE_HOST}  device=${DEVICE}"

@@ -9,7 +9,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-source "${REPO_DIR}/env.sh"
+source "${REPO_DIR}/lib/config.sh"
+chaos_load_env "${REPO_DIR}"
 source "${REPO_DIR}/lib/term.sh"
 
 DRY_RUN="${CHAOS_DRY_RUN:-false}"
@@ -23,6 +24,12 @@ for arg in "$@"; do
     esac
 done
 export CHAOS_DRY_RUN="${DRY_RUN}"
+
+if [[ -n "${GRAFANA_ADMIN_PASSWORD:-}" ]]; then
+    GRAFANA_ADMIN_PASSWORD_STATUS="configured"
+else
+    GRAFANA_ADMIN_PASSWORD_STATUS="not configured (default: admin)"
+fi
 
 _sep() { printf '%0.s─' {1..60}; printf '\n'; }
 
@@ -50,7 +57,7 @@ cat <<EOF
   GRAFANA_DOCKER_IMAGE      ${GRAFANA_DOCKER_IMAGE}
   GRAFANA_DATA_DIR          ${GRAFANA_DATA_DIR}
   GRAFANA_PORT              ${GRAFANA_PORT}
-  Admin password            ${GRAFANA_ADMIN_PASSWORD:-admin  (дефолт; задайте GRAFANA_ADMIN_PASSWORD в env.local.sh)}
+  Admin password            ${GRAFANA_ADMIN_PASSWORD_STATUS}
   Provisioning dir          ${SCRIPT_DIR}/provisioning
   Dashboards dir            ${SCRIPT_DIR}/dashboards
 

@@ -3,7 +3,8 @@
 # Читает CLUSTER_HOSTS из env.sh; для сброса добавьте флаг -D.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/env.sh"
+source "${SCRIPT_DIR}/lib/config.sh"
+chaos_load_env "${SCRIPT_DIR}"
 
 MODE_RESET=false
 if [[ "${1:-}" == "-D" ]]; then

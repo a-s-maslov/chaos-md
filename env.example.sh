@@ -92,6 +92,16 @@ YDBD_TENANT_SERVICES=(
 )
 YDBD_TENANT_UNIT_GLOB="ydbd-database-*.service"
 
+# Управление вычислительными узлами в сценарии эластичности. Порядок важен:
+# `cluster/dynamic-nodes.sh set N` оставляет включёнными первые N хостов.
+DYNAMIC_NODE_HOSTS=(
+    ydb-chaos-node-01.example.invalid
+    ydb-chaos-node-02.example.invalid
+    ydb-chaos-node-03.example.invalid
+)
+YDBD_DYNAMIC_SERVICE="ydbd-database-a.service"
+DYNAMIC_NODE_WAIT_SECONDS=60
+
 chaos_ydb_ports_help_line() {
     echo "${YDB_PORTS}"
 }
@@ -117,6 +127,9 @@ SSH_OPTS=(-o StrictHostKeyChecking=no -o LogLevel=ERROR -o BatchMode=yes)
 
 GRAFANA_URL="${GRAFANA_URL:-https://grafana.example.invalid/}"
 GRAFANA_TOKEN="${GRAFANA_TOKEN:-}"
+# Секреты держите только в env.local.sh. GRAFANA_ADMIN_PASSWORD нужен
+# configure-annotations.sh для выпуска локального service-account token.
+# GRAFANA_ADMIN_PASSWORD="change-me"
 
 # === Мониторинг (для install-скриптов в grafana/) ===
 MON_HOST="ydb-chaos-bastion.example.invalid"
@@ -127,7 +140,28 @@ NODE_EXPORTER_VERSION="1.8.2"
 GRAFANA_DOCKER_IMAGE="grafana/grafana:11.3.0"
 VICTORIA_DOCKER_IMAGE="victoriametrics/victoria-metrics:v1.106.1"
 VM_DATA_DIR="/var/lib/victoriametrics"
+# Host paths. They may point either to system directories or to one isolated
+# runtime directory owned by the user. Container paths stay unchanged.
+VM_CONFIG_DIR="/etc/victoriametrics"
+VM_TARGETS_DIR="/etc/prometheus"
 VM_PORT=8428
 VM_RETENTION="30d"
+VM_LATENCY_OFFSET="0s"  # single-node VM: не удерживать последние точки live-дашбордов
+WORKLOAD_METRICS_TARGET="127.0.0.1:9091"  # workload запущен на MON_HOST
+OBSERVER_METRICS_TARGET="127.0.0.1:9092"  # независимый observer .sys/partition_stats
+
+# === Workload lifecycle ===
+CHAOS_WORKLOAD_TYPE="${CHAOS_WORKLOAD_TYPE:-}"
+CHAOS_WORKLOAD_START_TIMEOUT="${CHAOS_WORKLOAD_START_TIMEOUT:-15}"
+CHAOS_WORKLOAD_STOP_TIMEOUT="${CHAOS_WORKLOAD_STOP_TIMEOUT:-15}"
+# На Windows при необходимости укажите Git Bash, чтобы Rust TUI не выбрал WSL:
+# CHAOS_BASH_BIN='C:\Program Files\Git\bin\bash.exe'
+
+# Adapter search (deep-tech-ydb-searches). Реальные пути удобнее держать в
+# workload/env.local.sh, который не коммитится.
+SEARCH_WORKLOAD_MODE="${SEARCH_WORKLOAD_MODE:-binary}" # binary|compose
+SEARCH_WORKLOAD_BIN="${SEARCH_WORKLOAD_BIN:-/opt/deep-tech-ydb-searches/bin/search-workload}"
+SEARCH_WORKLOAD_CONFIG="${SEARCH_WORKLOAD_CONFIG:-/opt/deep-tech-ydb-searches/config/workload.stand.json}"
+SEARCH_WORKLOAD_METRICS_URL="${SEARCH_WORKLOAD_METRICS_URL:-http://127.0.0.1:9091/metrics}"
 GRAFANA_DATA_DIR="/var/lib/grafana"
 GRAFANA_PORT=3000

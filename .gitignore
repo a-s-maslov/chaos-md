@@ -1,6 +1,8 @@
 env.sh
 env-*.sh
 env.local.sh
+cluster/env.local.sh
+reliability/env.local.sh
 workload/env.sh
 workload/env.local.sh
 
@@ -8,6 +10,7 @@ dist/
 
 logs/
 workload/logs/
+workload/.state/
 chaos-md/logs/
 *.state.json
 .chaos*

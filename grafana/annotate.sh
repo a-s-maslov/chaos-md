@@ -10,7 +10,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # shellcheck source=../env.sh
-source "${REPO_DIR}/env.sh"
+source "${REPO_DIR}/lib/config.sh"
+chaos_load_env "${REPO_DIR}"
 
 # Дашборд по умолчанию (UID берётся из пути /d/<uid>/...).
 # Можно задать через GRAFANA_DASHBOARD_URL в env.local.sh, либо через -u/--url.

@@ -12,7 +12,8 @@
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/env.sh"
+source "${SCRIPT_DIR}/lib/config.sh"
+chaos_load_env "${SCRIPT_DIR}"
 
 GRAFANA_LOCAL_PORT="${GRAFANA_PORT:-3000}"
 MON_PORT="${YDB_MON_PD_PORT:-8765}"

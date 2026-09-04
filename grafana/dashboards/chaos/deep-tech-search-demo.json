@@ -1,0 +1,1132 @@
+{
+  "version": 4,
+  "schemaVersion": 38,
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timepicker": {
+    "nowDelay": "2s"
+  },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      },
+      {
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": false,
+        "iconColor": "red",
+        "name": "Отказы",
+        "tags": [
+          "chaos",
+          "event:failure"
+        ],
+        "matchAny": false,
+        "type": "tags"
+      },
+      {
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": false,
+        "iconColor": "rgba(115, 191, 105, 1)",
+        "name": "Профили нагрузки",
+        "tags": [
+          "chaos",
+          "event:workload"
+        ],
+        "matchAny": false,
+        "type": "tags"
+      },
+      {
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": false,
+        "iconColor": "rgba(50, 116, 217, 1)",
+        "name": "Управляющие действия",
+        "tags": [
+          "chaos",
+          "event:control"
+        ],
+        "matchAny": false,
+        "type": "tags"
+      }
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "ds",
+        "type": "datasource",
+        "pluginId": "prometheus",
+        "query": "prometheus",
+        "label": "Datasource",
+        "current": {}
+      },
+      {
+        "name": "application",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${ds}"
+        },
+        "query": "label_values({__name__=~\"ydb_workload_rps|ydb_partition_observer_up\"}, application)",
+        "label": "Application",
+        "refresh": 2,
+        "sort": 1,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {}
+      },
+      {
+        "name": "database",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${ds}"
+        },
+        "query": "label_values(kqp_SessionActors_Active{container=\"ydb-dynamic\"}, database)",
+        "label": "Database",
+        "refresh": 2,
+        "sort": 1,
+        "current": {}
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Поисковые запросы и DML, RPS",
+      "id": 201,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 10,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "auto",
+            "pointSize": 6,
+            "spanNulls": false,
+            "gradientMode": "none",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "barAlignment": 0
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/fulltext/"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/vector/"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/hybrid/"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/ target$/"
+            },
+            "properties": [
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    6,
+                    6
+                  ],
+                  "fill": "dash"
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              },
+              {
+                "id": "custom.showPoints",
+                "value": "never"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "DML + проверка"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#73BF69"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "sum by (scenario) (ydb_workload_rps{application=~\"$application\",scenario=~\"fulltext|vector|hybrid\",statut=\"ok\"})",
+          "legendFormat": "{{scenario}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (scenario) (ydb_workload_target_rps{application=~\"$application\",scenario=~\"fulltext|vector|hybrid\",statut=\"ok\"})",
+          "legendFormat": "{{scenario}} target",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "expr": "sum(ydb_workload_rps{application=~\"$application\",scenario=\"dml_check\",statut=\"ok\"})",
+          "legendFormat": "DML + проверка",
+          "refId": "C"
+        }
+      ],
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Задержка p95, мс",
+      "id": 202,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 10,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "auto",
+            "pointSize": 6,
+            "spanNulls": false,
+            "gradientMode": "none",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "barAlignment": 0
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/fulltext/"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/vector/"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/hybrid/"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "DML + проверка"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#73BF69"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "max by (scenario) (ydb_workload_pct95{application=~\"$application\",scenario=~\"fulltext|vector|hybrid\",statut=\"ok\"})",
+          "legendFormat": "{{scenario}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "expr": "max(ydb_workload_pct95{application=~\"$application\",scenario=\"dml_check\",statut=\"ok\"})",
+          "legendFormat": "DML + проверка",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Ошибки и ретраи, RPS",
+      "description": "Ошибки — запросы, окончательно завершившиеся ошибкой. Ретраи — повторные попытки YDB SDK после временных ошибок. Обе серии приведены к операциям в секунду за фактический интервал измерения.",
+      "id": 203,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "reqps",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "auto",
+            "pointSize": 6,
+            "spanNulls": false,
+            "gradientMode": "none",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "barAlignment": 0,
+            "softMax": 1
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/fulltext/"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/vector/"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/hybrid/"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "sum(ydb_workload_error_rps{application=~\"$application\",scenario=~\"fulltext|vector|hybrid|dml_check\"})",
+          "legendFormat": "ошибки",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(ydb_workload_retry_rps{application=~\"$application\",scenario=~\"fulltext|vector|hybrid|dml_check\"})",
+          "legendFormat": "повторные попытки",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$ds"
+      },
+      "description": "User actor pool utilization divided by the dynamically allocated thread count. Auto-config may change that count while the node is running.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "auto",
+            "pointSize": 3,
+            "spanNulls": false,
+            "gradientMode": "none",
+            "insertNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 85
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "id": 205,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "expr": "100 * rate(utils_ElapsedMicrosec{container=\"ydb-dynamic\",database=~\"$database\",execpool=\"User\"}[$__rate_interval]) / 1000000 / clamp_min(avg_over_time(utils_CurrentThreadCount{container=\"ydb-dynamic\",database=~\"$database\",execpool=\"User\"}[$__rate_interval]), 1)",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ],
+      "title": "User pool CPU по dynamic-узлам, %",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$ds"
+      },
+      "description": "Displays the uptime of each node since its startup. Helps track restarts and identify unstable nodes.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "auto",
+            "pointSize": 3,
+            "spanNulls": false,
+            "gradientMode": "none",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "barAlignment": 0
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short",
+          "decimals": 0,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 16
+      },
+      "id": 206,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "sum(up{job=\"ydb/utils\",container=\"ydb-dynamic\",database=~\"$database\"})",
+          "legendFormat": "вычислительные узлы",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "sum(up{job=\"ydb/utils\",container=\"ydb-static\"})",
+          "legendFormat": "узлы хранения",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "sum(up{job=\"node\"})",
+          "legendFormat": "серверы",
+          "range": true,
+          "refId": "C"
+        }
+      ],
+      "title": "Доступные узлы и серверы",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$ds"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "auto",
+            "pointSize": 3,
+            "spanNulls": false,
+            "gradientMode": "none",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 204,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "expr": "max by (object) (100 * ydb_tablet_cpu_cores{application=~\"$application\"})",
+          "legendFormat": "{{object}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Самая загруженная таблетка, %",
+      "type": "timeseries",
+      "description": "Максимальная загрузка отдельной таблетки в каждом объекте по .sys/partition_stats."
+    },
+    {
+      "type": "timeseries",
+      "title": "Партиции",
+      "description": "Число рабочих партиций: основная таблица, таблица документов полнотекстового индекса и posting-таблица векторного индекса. Служебные таблицы индексов не суммируются.",
+      "id": 209,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "pointSize": 3,
+            "spanNulls": false,
+            "gradientMode": "none",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "expr": "sum(ydb_partition_count{application=~\"$application\",object=\"main\"})",
+          "legendFormat": "основная таблица",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "expr": "sum(ydb_partition_count{application=~\"$application\",object=\"fulltext\",path=~\".*/indexImplDocsTable\"})",
+          "legendFormat": "полнотекстовый индекс",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "expr": "sum(ydb_partition_count{application=~\"$application\",object=\"vector\",path=~\".*/indexImplPostingTable\"})",
+          "legendFormat": "векторный индекс",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Данные и индексы",
+      "description": "Строки и логический объём основной таблицы и внутренних таблиц индексов по .sys/partition_stats. Число внутренних строк индекса не обязано совпадать с числом документов.",
+      "id": 208,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Объект"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "main": {
+                        "index": 0,
+                        "text": "основная таблица"
+                      },
+                      "fulltext": {
+                        "index": 1,
+                        "text": "полнотекстовый индекс"
+                      },
+                      "vector": {
+                        "index": 2,
+                        "text": "векторный индекс"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Строки"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Объём"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
+        "sortBy": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "expr": "label_replace(sum by (object) (ydb_partition_rows{application=~\"$application\",object=\"main\"}), \"sort_order\", \"1\", \"object\", \".*\") or label_replace(sum by (object) (ydb_partition_rows{application=~\"$application\",object=\"fulltext\"}), \"sort_order\", \"2\", \"object\", \".*\") or label_replace(sum by (object) (ydb_partition_rows{application=~\"$application\",object=\"vector\"}), \"sort_order\", \"3\", \"object\", \".*\")",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "Строки",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "expr": "label_replace(sum by (object) (ydb_partition_size_bytes{application=~\"$application\",object=\"main\"}), \"sort_order\", \"1\", \"object\", \".*\") or label_replace(sum by (object) (ydb_partition_size_bytes{application=~\"$application\",object=\"fulltext\"}), \"sort_order\", \"2\", \"object\", \".*\") or label_replace(sum by (object) (ydb_partition_size_bytes{application=~\"$application\",object=\"vector\"}), \"sort_order\", \"3\", \"object\", \".*\")",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "Объём",
+          "refId": "B"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "sort_order",
+                "desc": false
+              }
+            ]
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "sort_order": true
+            },
+            "indexByName": {
+              "object": 0,
+              "Value #A": 1,
+              "Value #B": 2
+            },
+            "renameByName": {
+              "object": "Объект",
+              "Value #A": "Строки",
+              "Value #B": "Объём"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Метрики качества поиска",
+      "description": "Последний офлайн-прогон по 1 252 запросам MIRACL RU.\n\nANN recall@30 — доля результатов exact top-30, найденная приближённым векторным поиском.\n\nqrel recall@30 — доля документов из эталонной разметки, найденная в первых 30 результатах полнотекстового, векторного или гибридного поиска.\n\nМетрики пересчитываются отдельно и не создают нагрузку во время демонстрации.",
+      "id": 215,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "text": {
+          "titleSize": 12,
+          "valueSize": 18
+        },
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "expr": "max(search_quality_ann_recall{application=~\"$application\",k=\"30\"})",
+          "legendFormat": "ANN recall@30",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "expr": "max(search_quality_qrel_recall{application=~\"$application\",method=\"fulltext\",aggregation=\"micro\",k=\"30\"})",
+          "legendFormat": "полнотекст · qrel recall@30",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "expr": "max(search_quality_qrel_recall{application=~\"$application\",method=\"vector\",aggregation=\"micro\",k=\"30\"})",
+          "legendFormat": "вектор · qrel recall@30",
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "expr": "max(search_quality_qrel_recall{application=~\"$application\",method=\"hybrid\",aggregation=\"micro\",k=\"30\"})",
+          "legendFormat": "гибрид · qrel recall@30",
+          "refId": "D"
+        }
+      ]
+    }
+  ],
+  "id": null,
+  "uid": "deep-tech-search-demo",
+  "title": "Deep Tech: YDB Search Demo",
+  "tags": [
+    "chaos",
+    "demo",
+    "search",
+    "ydb"
+  ],
+  "description": "Компактный dashboard для демонстрации поиска, эластичности и инфраструктурных отказов.",
+  "refresh": "5s"
+}

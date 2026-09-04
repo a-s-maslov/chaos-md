@@ -1,4 +1,88 @@
-# workload — нагружалка YDB
+# Workload lifecycle
+
+`manage.sh` даёт единый интерфейс для разных генераторов нагрузки. Сейчас
+доступны adapters `search` (воркшоп по поиску) и `stock` (старый штатный YDB
+workload).
+
+Архитектурный контракт, жизненный цикл и правила добавления adapters описаны в
+[ARCHITECTURE.md](ARCHITECTURE.md).
+
+```sh
+cp manager.env.example.sh env.local.sh
+# отредактировать пути и connection config
+
+bash manage.sh --type search info
+bash manage.sh --type search prepare
+bash manage.sh --type search --profile overview start
+bash manage.sh --type search status
+bash manage.sh --type search stop
+```
+
+`start` запускает процесс в фоне, пишет PID в `workload/.state/`, ждёт health
+endpoint и сохраняет stdout/stderr в `logs/workload/search.log`. Команда `run`
+оставляет процесс в foreground; это удобно для отдельного smoke-теста.
+
+Именованный профиль выбирает готовый режим нагрузки. При каждом `start`/`stop`
+manager пишет событие в timeline и открывает/закрывает региональную аннотацию
+Grafana. Переключение намеренно состоит из двух явных команд:
+
+```sh
+bash manage.sh --type search stop
+bash manage.sh --type search --profile fulltext-partition start
+```
+
+Это создаёт понятную границу профилей на графике. Если процесс уже запущен с
+другим профилем, второй `start` завершается ошибкой, а не меняет нагрузку
+незаметно. Действия с индексами проходят через тот же adapter и дают точечную
+засечку:
+
+```sh
+bash manage.sh --type search action partitions
+bash manage.sh --type search action partition-fixed fulltext
+bash manage.sh --type search action partition-auto fulltext
+bash manage.sh --type search action partition-elastic all
+bash manage.sh --type search action reset-fulltext
+bash manage.sh --type search action reset-vector
+```
+
+`partition-elastic` оставляет автосплит по нагрузке включённым, но применяет
+настроенные workload-проектом нижние границы числа партиций. Это сохраняет
+подготовленную ёмкость между этапами демонстрации.
+
+`reset-fulltext` пересоздаёт только полнотекстовый индекс и ждёт его готовности.
+Основная таблица и векторный индекс не изменяются; действие предназначено для
+возврата демонстрационного стенда к одной исходной партиции индекса.
+
+`reset-vector` пересоздаёт только векторный индекс и также ждёт его готовности.
+DDL и параметры дерева задаёт подключённый workload-проект; chaos-md лишь
+передаёт действие через общий адаптер.
+
+Число dynamic-узлов меняется отдельно и безопасно:
+
+```sh
+bash cluster/dynamic-nodes.sh set 1
+bash cluster/dynamic-nodes.sh set 3
+```
+
+Скрипт работает только с явно настроенным `YDBD_DYNAMIC_SERVICE`, сначала
+запускает целевые узлы и лишь затем выключает лишние. Storage service защищён
+от случайного выбора.
+
+Основной демонстрационный вариант — запуск из корня вместе с chaos-прогоном:
+
+```sh
+./chaos-md.sh --workload search --headless --tests 12,13 -t 300 --node
+```
+
+Локальные smoke-тесты lifecycle и adapters (не требуют настоящего кластера):
+
+```sh
+bash workload/tests/manager-smoke.sh
+bash workload/tests/search-adapter-smoke.sh
+bash workload/tests/launcher-smoke.sh
+```
+
+## Старый stock workload
 
 Самодостаточный модуль нагрузки для хаос-тестов. Поверх штатного
 [`ydb workload stock`](https://ydb.tech/docs/ru/reference/ydb-cli/commands/workload/stock):
@@ -159,18 +243,25 @@ sum by (scenario) (rate(ydb_workload_countError{application="chaos-stock"}[1m]))
 
 ```
 workload/
-├── env.sh              — конфиг с safe-defaults (без реальных адресов)
-├── env.example.sh      — образец env.local.sh
-├── workload.sh         — CLI: info / init / run / cleanup
-├── deploy.sh           — rsync на target-хост
-├── lib/log.sh          — таймстемпованное логирование
-├── lib/ydb.sh          — обёртки над ydb CLI и валидация
-├── lib/vm.sh           — POST line-protocol в VictoriaMetrics
-└── lib/stats.sh        — awk-парсер вывода ydb workload stock
+├── manage.sh                   — универсальный lifecycle
+├── manager.env.example.sh      — пример общей конфигурации adapters
+├── adapters/
+│   ├── search.sh               — deep-tech-ydb-searches
+│   └── stock.sh                — legacy ydb workload stock
+├── tests/                      — smoke-тест lifecycle
+├── ARCHITECTURE.md             — контракт интеграции
+├── workload.sh                 — legacy stock CLI
+├── env.example.sh              — legacy stock config
+├── deploy.sh                   — legacy stock deploy
+└── lib/                        — библиотеки legacy stock workload
 ```
 
-## Что не делает (на этом этапе)
+## Границы ответственности
 
-- Не работает фоном/демоном — управление только в открытой ssh-сессии.
-- Не имеет своего Grafana dashboard для `ydb_workload_*`.
-- Не интегрировано с TUI Chaos MD.
+- `manage.sh` управляет foreground/background lifecycle, PID, health и логами.
+- Общий Grafana/VictoriaMetrics stack остаётся в `grafana/`; workload не
+  запускает собственную копию мониторинга.
+- `chaos-md.sh --workload <type>` интегрирует нагрузку с headless/TUI-прогоном и
+  гарантирует остановку через trap.
+- Конкретная реализация нагрузки и её продуктовые проверки принадлежат adapter,
+  а не Rust TUI.

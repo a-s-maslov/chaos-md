@@ -717,7 +717,9 @@ fn open_check_dialog(
 
     tokio::task::spawn_blocking(move || {
         use std::process::{Command, Stdio};
-        let out = Command::new("bash")
+        let bash_bin =
+            std::env::var("CHAOS_BASH_BIN").unwrap_or_else(|_| "bash".to_string());
+        let out = Command::new(bash_bin)
             .arg(&file)
             .arg("-C")
             .current_dir(&root)
